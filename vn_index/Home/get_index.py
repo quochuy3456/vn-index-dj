@@ -27,22 +27,31 @@ file_logger_format = logging.Formatter(FORMAT)
 # path_5 = "https://s.cafef.vn/upcom/HHA-cong-ty-co-phan-van-phong-pham-hong-ha.chn"
 # path_6 = "https://s.cafef.vn/upcom/KSA-cong-ty-co-phan-cong-nghiep-khoang-san-binh-thuan.chn"
 
-lst_items = ["EPS cơ bản", "EPS pha loãng", "P/E", "Giá trị sổ sách",
+lst_item = ["EPS cơ bản", "EPS pha loãng", "P/E", "Giá trị sổ sách",
             "Hệ số beta", "KLGD khớp lệnh trung bình 10 phiên",
             "KLCP đang niêm yết", "KLCP đang lưu hành", "thị trường"]
 
+price_item = ["Giá tham chiếu", "Giá trần", "Giá sàn", "Giá mở cửa", "Giá cao nhất", "Giá thấp nhất", "GD ròng NĐTNN", "Room NN còn lại"]
+
+price_item_2 = ["Mở cửa", "Cao nhất", "Thấp nhất"]
+
 class GetIndex:
-    def __init__(self, path, lst_items=lst_items):
+    def __init__(self, path, lst_item=lst_item, price_item=price_item, price_item2=price_item_2):
         self.path = path
         self.all_data = None
-        self.clawer_all_data()
-        self.lst_items = lst_items
+        self.crawl_all_data()
+        self.lst_item = lst_item
+        self.price_item = price_item
+        self.price_item2 = price_item2
 
-    def clawer_all_data(self):
+    def crawl_all_data(self):
         self.all_data = BeautifulSoup(requests.get(self.path).text, "html.parser")
 
     def get_eps(self, text):
         d = self.all_data.find(text=text).find_parents('li')[0]
+        if not d:
+            return None
+
         if d.find_all('div'):
             return list(map(lambda x: x.get_text(strip=True), d.find_all('div')))
         elif d.find_all('span'):
@@ -53,6 +62,9 @@ class GetIndex:
 
     def get_pe(self, text):
         d = self.all_data.find_all('li')
+        if not d:
+            return None
+
         for s in d:
             if text in s.get_text(strip=True):
                 if s.find_all('div'):
@@ -63,7 +75,10 @@ class GetIndex:
                     logger.info("Try get data with get_pe(): FAIL")
                     return "Error"
 
-    def detect_method(self, vle):
+    def detect_get_index_method(self, vle):
+        if not vle:
+            return None
+
         logging.info(f"Try get data {vle}")
         try:
             _dt = self.get_eps(vle)
@@ -71,27 +86,7 @@ class GetIndex:
             _dt = self.get_pe(vle)
         return _dt
 
-    def get_list(self):
-        dt = list(map(self.detect_method, self.lst_items))
+    def get_all_index_info(self):
+        dt = list(map(self.detect_get_index_method, self.lst_item))
         dt_dict = pd.DataFrame(dt).T
         return dt_dict
-
-# lst_path = [path_1, path_2, path_3, path_4, path_5, path_6]
-
-
-# kt = GetIndex(path_3)
-# print(kt.get_list()[1][1])
-
-
-# for p in lst_path:
-#     kt = GetIndex(p)
-#     for i in lst_item:
-#         try:
-#             logger.info("Try get data with get_eps()")
-#             d = kt.get_eps(text=i)
-#         except:
-#             logger.warning("Try get data with get_eps(): FAIL")
-#             logger.info("Try get data with get_ep()")
-#             d = kt.get_pe(text=i)
-#         print(d)
-#     print("---------------")
